@@ -4,15 +4,18 @@ import Cocoa
 class TextField: NSTextField {
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        guard let charactersIgnoringModifiers = event.charactersIgnoringModifiers else {
-            return super.performKeyEquivalent(with: event)
-        }
-        switch charactersIgnoringModifiers {
+        let action: Selector?
+        switch event.charactersIgnoringModifiers {
         case "v":
-            return NSApp.sendAction(#selector(NSText.paste(_:)), to: window?.firstResponder, from: self)
+            action = #selector(NSText.paste(_:))
         case "c":
-            return NSApp.sendAction(#selector(NSText.copy(_:)), to: window?.firstResponder, from: self)
+            action = #selector(NSText.copy(_:))
         default:
+            action = nil
+        }
+        if let action = action {
+            return NSApp.sendAction(action, to: window?.firstResponder, from: self)
+        } else {
             return super.performKeyEquivalent(with: event)
         }
     }

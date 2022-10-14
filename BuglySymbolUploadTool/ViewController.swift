@@ -6,7 +6,8 @@ class ViewController: NSViewController {
     @IBOutlet private weak var appKeyTextField: TextField!
     @IBOutlet private weak var bundleIdTextField: TextField!
     @IBOutlet private weak var versionTextField: TextField!
-    @IBOutlet private weak var dSYMPopUpButton: NSPopUpButton!
+    @IBOutlet private weak var dSYMFilePathTextField: TextField!
+    
     @IBOutlet private weak var uploadButton: NSButton!
     @IBOutlet private weak var logOutputView: NSTextView!
     
@@ -16,87 +17,46 @@ class ViewController: NSViewController {
         appIdTextField,
         appKeyTextField,
         bundleIdTextField,
-        versionTextField
+        versionTextField,
+        dSYMFilePathTextField
     ].compactMap { $0 }
     
     override func viewDidLoad() {
         super.viewDidLoad()
-                                
+        
         textFields.forEach { $0.delegate = self }
-        uploadButton.isEnabled = false
-
-        if let jarDirectoryPath = Bundle.main.infoDictionary?["BUGLY_QQ_UPLOAD_SYMBOL_PATH"] as? String {
-            metadata.jarDirectoryURL = URL(fileURLWithPath: jarDirectoryPath, isDirectory: true)
-        } else {
-            showToast("jarDirectoryURL MUST not be nil.")
-        }
-
-        if let metadata = try? readMetadata() {
+        
+        if let metadata = try? Metadata.read() {
             appIdTextField.stringValue = metadata.appId
             appKeyTextField.stringValue = metadata.appKey
             bundleIdTextField.stringValue = metadata.bundleId
             versionTextField.stringValue = metadata.version
-            textFields.forEach(reloadMetadata(textField:))
-        }
-    }
-    
-    @IBAction func selectDSYMPopUpButtonClicked(_ sender: NSPopUpButton) {
-        textFields.forEach { $0.window?.makeFirstResponder(nil) }
-        
-        let indexOfSelectedItem = sender.indexOfSelectedItem
-        switch indexOfSelectedItem {
-        case 0:
-            pickerDSYMFile { [weak self] path in
-                guard let self = self else { return }
-                let dSYMFileURL = path.flatMap { URL(fileURLWithPath: $0, isDirectory: false) }
-                self.metadata.dSYMFileURL = dSYMFileURL
-                self.reloadDSYMPopUpButton()
-                self.reloadUploadButton()
+            if let dSYMFileURL = metadata.dSYMFileURL {
+                dSYMFilePathTextField.stringValue = dSYMFileURL.relativePath
             }
-        case 1:
-            reloadDSYMPopUpButton()
-            reloadUploadButton()
-        default:
-            let message = "请选择 dSYM 文件"
-            displayLog(message, isWarning: true)
+            textFields.forEach(reloadMetadata(textField:))
         }
     }
     
     // MARK: Actions
     
+    @IBAction func dSYMFileSelectButtonClicked(_ sender: NSButton) {
+        pickerDSYMFile { [weak self] path in
+            guard let self = self else { return }
+            let dSYMFileURL = path.flatMap { URL(fileURLWithPath: $0, isDirectory: false) }
+            self.metadata.dSYMFileURL = dSYMFileURL
+            self.dSYMFilePathTextField.stringValue = dSYMFileURL?.relativePath ?? ""
+        }
+    }
+    
     @IBAction func uploadButtonClicked(_ sender: NSButton) {
         textFields.forEach(reloadMetadata(textField:))
-        
-        guard metadata.canUpload() else {
-            let checkTexts = [
-                metadata.appId,
-                metadata.appKey,
-                metadata.bundleId,
-                metadata.version,
-                metadata.dSYMFileURL?.absoluteString ?? ""
-            ]
-            let invalidIndex = checkTexts
-                .firstIndex { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-            switch invalidIndex {
-            case 0:
-                showToast("请输入有效的 Bugly App ID")
-            case 1:
-                showToast("请输入有效的 Bugly App Key")
-            case 2:
-                showToast("请输入有效的 Bundle ID")
-            case 3:
-                showToast("请输入有效的应用版本")
-            case 4:
-                showToast("请选择有效的符号表文件(.dSYM)")
-            default:
-                showToast("参数有误，请检查")
-            }
-            return
+        do {
+            try metadata.write()
+            upload()
+        } catch {
+            showErrorToast(error)
         }
-        
-        try? writeMetadata()
-                
-        upload()
     }
     
 }
@@ -110,7 +70,6 @@ extension ViewController: NSTextFieldDelegate {
             fatalError()
         }
         reloadMetadata(textField: textField)
-        reloadUploadButton()
     }
     
     func controlTextDidEndEditing(_ noti: Notification) {
@@ -143,26 +102,6 @@ private extension ViewController {
     
 }
 
-// MARK: Caches
-
-private extension ViewController {
-    
-    static let metadataStorageKey = "com.axe.metadata-storage-key"
-    
-    func writeMetadata() throws {
-        let data = try JSONEncoder().encode(metadata)
-        UserDefaults.standard.set(data, forKey: Self.metadataStorageKey)
-    }
-    
-    func readMetadata() throws -> Metadata? {
-        guard let data = UserDefaults.standard.object(forKey: Self.metadataStorageKey) as? Data else {
-            return nil
-        }
-        return try JSONDecoder().decode(Metadata.self, from: data)
-    }
-}
-
-
 // MARK: Helper
 
 private extension ViewController {
@@ -174,23 +113,22 @@ private extension ViewController {
             switch result {
             case .success(let output):
                 if let message = output.message {
-                    DispatchQueue.main.async {
-                        self.displayLog(message, isWarning: false)
-                    }
+                    self.displayLog(message, isWarning: false)
                 } else if let status = output.status {
-                    self.uploadButton.isEnabled = true
                     self.deleteZipFileInBackground()
-                    print(status == 0 ? "Task success" : "Task failed")
+                    self.uploadButton.isEnabled = true
+                    if status != 0 {
+                        self.showToast("Upload failed.")
+                    } else {
+                        self.showToast("Upload succeeded.")
+                    }
                 } else {
                     fatalError()
                 }
             case .failure(let error):
-                let errmsg = error.localizedDescription
-                DispatchQueue.main.async {
-                    self.uploadButton.isEnabled = true
-                    self.showToast(errmsg)
-                    self.displayLog(errmsg, isWarning: true)
-                }
+                self.uploadButton.isEnabled = true
+                self.showErrorToast(error)
+                self.displayLog("*** Error: " + String(describing: error) + "\n", isWarning: true)
             }
         }
     }
@@ -205,25 +143,9 @@ private extension ViewController {
             do {
                 try fileManager.removeItem(at: zipURL)
             } catch {
-                print(error)
+                debugPrint(error)
             }
         }
-    }
-    
-    func reloadDSYMPopUpButton() {
-        dSYMPopUpButton.removeAllItems()
-        dSYMPopUpButton.addItem(withTitle: "选择 dSYM 文件")
-        if let dSYMFileURL = metadata.dSYMFileURL, dSYMFileURL.isFileURL {
-            dSYMPopUpButton.addItem(withTitle: dSYMFileURL.lastPathComponent)
-            let selectIndex = dSYMPopUpButton.itemTitles.firstIndex(of: dSYMFileURL.lastPathComponent) ?? 0
-            if selectIndex != dSYMPopUpButton.indexOfSelectedItem {
-                dSYMPopUpButton.selectItem(at: selectIndex)
-            }
-        }
-    }
-    
-    func reloadUploadButton() {
-        uploadButton.isEnabled = metadata.canUpload()
     }
     
     func reloadMetadata(textField: TextField) {
@@ -237,6 +159,9 @@ private extension ViewController {
             metadata.bundleId = text
         case versionTextField:
             metadata.version = text
+        case dSYMFilePathTextField:
+            let dSYMFileURL = URL(fileURLWithPath: text, isDirectory: false)
+            metadata.dSYMFileURL = dSYMFileURL.isFileURL ? dSYMFileURL : nil
         default:
             fatalError()
         }
@@ -252,16 +177,22 @@ private extension ViewController {
         DispatchQueue.main.async(execute: execute)
     }
     
-    private func displayLog(_ message: String, isWarning: Bool) {
+    func showErrorToast(_ error: Error) {
         let execute = {
-            var attributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12.0)]
-            if isWarning {
-                attributes[.foregroundColor] = NSColor.red
-            } else {
-                attributes[.foregroundColor] = NSColor.black
-            }
+            let alert = NSAlert(error: error)
+            alert.beginSheetModal(for: self.view.window!)
+        }
+        DispatchQueue.main.async(execute: execute)
+    }
+    
+    func displayLog(_ message: String, isWarning: Bool) {
+        let execute = {
+            let textColor: NSColor = isWarning ? .systemRed : .labelColor
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: NSFont.preferredFont(forTextStyle: .body),
+                .foregroundColor: textColor
+            ]
             let attributeText = NSAttributedString(string: message, attributes: attributes)
-            
             self.logOutputView.textStorage?.append(attributeText)
             if !message.hasSuffix(".") {
                 self.logOutputView.textStorage?.mutableString.append("\n")

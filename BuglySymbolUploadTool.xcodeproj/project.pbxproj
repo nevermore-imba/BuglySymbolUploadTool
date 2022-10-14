@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F298D11228F90539008FA9F8 /* Error.swift in Sources */ = {isa = PBXBuildFile; fileRef = F298D11128F90539008FA9F8 /* Error.swift */; };
 		F2E2B51128F3EA61003CE89D /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E2B51028F3EA61003CE89D /* AppDelegate.swift */; };
 		F2E2B51328F3EA61003CE89D /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E2B51228F3EA61003CE89D /* ViewController.swift */; };
 		F2E2B51528F3EA63003CE89D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F2E2B51428F3EA63003CE89D /* Assets.xcassets */; };
@@ -17,6 +18,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		F298D11128F90539008FA9F8 /* Error.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Error.swift; sourceTree = "<group>"; };
 		F2E2B50D28F3EA61003CE89D /* BuglySymbolUploadTool.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BuglySymbolUploadTool.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F2E2B51028F3EA61003CE89D /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		F2E2B51228F3EA61003CE89D /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -65,6 +67,7 @@
 				F2E2B52328F408C5003CE89D /* Upload.swift */,
 				F2E2B52528F41914003CE89D /* TextField.swift */,
 				F2E2B52B28F506CE003CE89D /* CommandRunner.swift */,
+				F298D11128F90539008FA9F8 /* Error.swift */,
 				F2E2B51428F3EA63003CE89D /* Assets.xcassets */,
 				F2E2B51628F3EA63003CE89D /* Main.storyboard */,
 				F2E2B51928F3EA63003CE89D /* BuglySymbolUploadTool.entitlements */,
@@ -146,6 +149,7 @@
 				F2E2B51328F3EA61003CE89D /* ViewController.swift in Sources */,
 				F2E2B51128F3EA61003CE89D /* AppDelegate.swift in Sources */,
 				F2E2B52628F41914003CE89D /* TextField.swift in Sources */,
+				F298D11228F90539008FA9F8 /* Error.swift in Sources */,
 				F2E2B52C28F506CE003CE89D /* CommandRunner.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

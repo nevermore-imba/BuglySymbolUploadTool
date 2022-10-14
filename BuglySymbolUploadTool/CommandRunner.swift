@@ -9,21 +9,6 @@ struct CommandRunner {
         let message: String?
     }
     
-    /// 同步执行
-    /// - Parameter command: shell 命令，如 "ls -l"
-    /// - Returns: 命令行执行结果。
-    static func syncExecute(command: String) throws -> Output {
-        let environment = [
-            "LANG": "en_US.UTF-8",
-            "PATH": "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-        ]
-        let arguments = ["-c", command]
-        let executableURL = URL(fileURLWithPath: "/bin/bash")
-        return try syncExecute(executableURL: executableURL,
-                               arguments: arguments,
-                               environment: environment)
-    }
-    
     static func syncExecute(executableURL: URL,
                             arguments: [String]? = nil,
                             currentDirectoryURL: URL? = nil,

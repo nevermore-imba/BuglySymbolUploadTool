@@ -2,7 +2,7 @@ import Foundation
 
 struct Metadata: Codable {
     
-    var jarDirectoryURL: URL?
+    let jarDirectoryURL: URL?
     var dSYMFileURL: URL?
     var appId: String
     var appKey: String
@@ -10,13 +10,13 @@ struct Metadata: Codable {
     var version: String
     private var platform = "IOS"
     
-    init(jarDirectoryURL: URL? = nil,
-         dSYMFileURL: URL? = nil,
+    init(dSYMFileURL: URL? = nil,
          appId: String = "",
          appKey: String = "",
          bundleId: String = "",
          version: String = "") {
-        self.jarDirectoryURL = jarDirectoryURL
+        let jarDirectoryPath = Bundle.main.infoDictionary?["BUGLY_QQ_UPLOAD_SYMBOL_PATH"] as? String
+        self.jarDirectoryURL = jarDirectoryPath.flatMap { URL(fileURLWithPath: $0, isDirectory: true) }
         self.dSYMFileURL = dSYMFileURL
         self.appId = appId
         self.appKey = appKey
@@ -24,16 +24,32 @@ struct Metadata: Codable {
         self.version = version
     }
     
-    func canUpload() -> Bool {
-        var results = [appId, appKey, bundleId, version].map { !$0.isEmpty }
-        results += [jarDirectoryURL, dSYMFileURL].map { $0?.isFileURL ?? false }
-        return results.dropFirst().reduce(results[0]) { $0 && $1 }
-    }
-    
     func upload(completionHandler: @escaping (Result<CommandRunner.Output, Error>) -> Void) {
-        guard let dSYMFileURL = dSYMFileURL, dSYMFileURL.isFileURL else {
-            fatalError("The dSYM file path MUST not be nil.")
+        guard let jarDirectoryURL = jarDirectoryURL, jarDirectoryURL.isFileURL, jarDirectoryURL.lastPathComponent == "buglyqq-upload-symbol" else {
+            completionHandler(.failure(BSUTError.jarDirectoryPathMissing))
+            return
         }
+        guard !appId.isEmpty else {
+            completionHandler(.failure(BSUTError.invalidParameters("App ID for Bugly")))
+            return
+        }
+        guard !appKey.isEmpty else {
+            completionHandler(.failure(BSUTError.invalidParameters("App Key for Bugly")))
+            return
+        }
+        guard !bundleId.isEmpty else {
+            completionHandler(.failure(BSUTError.invalidParameters("Bundle ID for your project")))
+            return
+        }
+        guard !version.isEmpty else {
+            completionHandler(.failure(BSUTError.invalidParameters("Crash version for your project")))
+            return
+        }
+        guard let dSYMFileURL = dSYMFileURL, dSYMFileURL.isFileURL, dSYMFileURL.pathExtension == "dSYM" else {
+            completionHandler(.failure(BSUTError.dSYMFilePathMissing))
+            return
+        }
+        
         let arguments = [
             "-jar",
             "buglyqq-upload-symbol.jar",
@@ -57,4 +73,22 @@ struct Metadata: Codable {
                                    completionHandler: completionHandler)
     }
     
+}
+
+extension Metadata {
+    
+    private
+    static let metadataStorageKey = "com.axe.metadata-storage-key"
+    
+    func write() throws {
+        let data = try JSONEncoder().encode(self)
+        UserDefaults.standard.set(data, forKey: Self.metadataStorageKey)
+    }
+    
+    static func read() throws -> Metadata? {
+        guard let data = UserDefaults.standard.object(forKey: Self.metadataStorageKey) as? Data else {
+            return nil
+        }
+        return try JSONDecoder().decode(Metadata.self, from: data)
+    }
 }
