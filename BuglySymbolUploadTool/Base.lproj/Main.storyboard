@@ -308,9 +308,6 @@
                                 <buttonCell key="cell" type="push" title="上传符号表" bezelStyle="rounded" alignment="center" controlSize="large" borderStyle="border" imageScaling="proportionallyDown" inset="2" id="WYn-ok-ylU">
                                     <behavior key="behavior" pushIn="YES" lightByBackground="YES" lightByGray="YES"/>
                                     <font key="font" metaFont="system"/>
-                                    <string key="keyEquivalent" base64-UTF8="YES">
-DQ
-</string>
                                 </buttonCell>
                                 <color key="bezelColor" name="AccentColor"/>
                                 <connections>
